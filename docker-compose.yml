@@ -1,0 +1,54 @@
+services:
+    db:
+      image: pgvector/pgvector:pg16
+      environment:
+        POSTGRES_DB: docufind
+        POSTGRES_USER: docufind
+        POSTGRES_PASSWORD: docufind
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U docufind"]
+        interval: 5s
+        retries: 5
+
+    redis:
+      image: redis:7
+      healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 5s
+        retries: 5
+
+    web:
+      build: .
+      command: python manage.py runserver 0.0.0.0:8000
+      volumes:
+        - .:/app
+      ports:
+        - "8000:8000"
+      environment: &django-env
+        POSTGRES_USER: docufind
+        POSTGRES_PASSWORD: docufind
+        POSTGRES_HOST: db
+        POSTGRES_PORT: 5432
+        REDIS_URL: redis://redis:6379/0
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+
+    celery:
+      build: .
+      command: celery -A docuMind worker --loglevel=info
+      volumes:
+        - .:/app
+      environment: *django-env
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+
+volumes:
+    postgres_data:
