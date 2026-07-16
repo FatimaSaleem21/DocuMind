@@ -10,7 +10,8 @@ from reportlab.pdfgen import canvas
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from docuMind.apps.documents.models import Document
+from docuMind.apps.documents.models import Document, DocumentChunk
+from docuMind.apps.documents.services.chunking import chunk_text
 
 MEDIA_ROOT = tempfile.mkdtemp()
 
@@ -49,6 +50,22 @@ def make_encrypted_pdf_bytes(password="secret123"):
     buf = io.BytesIO()
     writer.write(buf)
     return buf.getvalue()
+
+
+class ChunkTextTests(APITestCase):
+    def test_chunk_count_and_overlap_for_known_input(self):
+        words = [f"word{i}" for i in range(120)]
+        text = " ".join(words)
+
+        chunks = chunk_text(text, chunk_size=50, overlap=10)
+
+        self.assertEqual([len(c.split()) for c in chunks], [50, 50, 40])
+        self.assertEqual(chunks[0].split()[-10:], chunks[1].split()[:10])
+        self.assertEqual(chunks[1].split()[-10:], chunks[2].split()[:10])
+
+    def test_empty_text_produces_no_chunks(self):
+        self.assertEqual(chunk_text(""), [])
+        self.assertEqual(chunk_text("   "), [])
 
 
 @override_settings(MEDIA_ROOT=MEDIA_ROOT)
@@ -131,6 +148,17 @@ class DocumentProcessingTests(APITestCase):
         self.assertEqual(document.status, Document.Status.READY)
         self.assertEqual(document.page_count, 3)
         self.assertIsNotNone(document.processed_at)
+
+        chunks = DocumentChunk.objects.filter(document=document)
+        self.assertGreater(chunks.count(), 0)
+        self.assertEqual(
+            set(chunks.values_list("page_number", flat=True)),
+            set(range(1, document.page_count + 1)),
+        )
+        self.assertEqual(
+            list(chunks.values_list("chunk_index", flat=True)),
+            list(range(chunks.count())),
+        )
 
     def test_scanned_pdf_fails_with_clear_message(self):
         response = self.upload("scanned.pdf", make_blank_pdf_bytes())

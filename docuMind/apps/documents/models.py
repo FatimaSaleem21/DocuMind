@@ -19,6 +19,11 @@ class Document(models.Model):
 
 
 class DocumentChunk(models.Model):
-    text = models.TextField()
-    embedding = VectorField(dimensions=1536)
+    document = models.ForeignKey(Document, related_name="chunks", on_delete=models.CASCADE)
+    content = models.TextField()
+    chunk_index = models.IntegerField()
+    page_number = models.IntegerField()
+    embedding = VectorField(dimensions=1536, null=True, blank=True)
 
+    class Meta:
+        ordering = ["document", "chunk_index"]
