@@ -1,9 +1,10 @@
 import io
 import shutil
 import tempfile
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
@@ -12,6 +13,9 @@ from rest_framework.test import APITestCase
 
 from docuMind.apps.documents.models import Document, DocumentChunk
 from docuMind.apps.documents.services.chunking import chunk_text
+from docuMind.apps.documents.services import embeddings
+
+FAKE_EMBEDDING = [0.0] * 1536
 
 MEDIA_ROOT = tempfile.mkdtemp()
 
@@ -68,6 +72,20 @@ class ChunkTextTests(APITestCase):
         self.assertEqual(chunk_text("   "), [])
 
 
+class EmbedChunksBatchingTests(SimpleTestCase):
+    @patch.object(embeddings, "_embed_batch")
+    def test_texts_are_split_into_batches_of_100(self, mock_embed_batch):
+        mock_embed_batch.side_effect = lambda batch: [FAKE_EMBEDDING for _ in batch]
+        texts = [f"chunk {i}" for i in range(250)]
+
+        vectors = embeddings.embed_chunks(texts)
+
+        self.assertEqual(mock_embed_batch.call_count, 3)
+        batch_sizes = [len(call.args[0]) for call in mock_embed_batch.call_args_list]
+        self.assertEqual(batch_sizes, [100, 100, 50])
+        self.assertEqual(len(vectors), 250)
+
+
 @override_settings(MEDIA_ROOT=MEDIA_ROOT)
 class DocumentUploadTests(APITestCase):
     @classmethod
@@ -118,17 +136,27 @@ class DocumentUploadTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
+def make_fake_embeddings_response(texts):
+    response = type("EmbeddingResponse", (), {})()
+    response.data = [type("Item", (), {"embedding": list(FAKE_EMBEDDING)})() for _ in texts]
+    return response
+
+
 @override_settings(
     MEDIA_ROOT=MEDIA_ROOT,
     CELERY_TASK_ALWAYS_EAGER=True,
     CELERY_TASK_EAGER_PROPAGATES=True,
 )
+@patch.object(embeddings.client.embeddings, "create")
 class DocumentProcessingTests(APITestCase):
     """
     Runs the task synchronously (no live worker/Redis) against real,
     programmatically generated PDFs to prove extraction + status transitions
     work end to end. This does NOT exercise the real async gap covered by
     the manual polling acceptance check.
+
+    The OpenAI embeddings call is mocked so these tests are free, fast,
+    and deterministic — no real network calls or API key required.
     """
 
     @classmethod
@@ -140,7 +168,8 @@ class DocumentProcessingTests(APITestCase):
         pdf = SimpleUploadedFile(filename, content, content_type="application/pdf")
         return self.client.post(reverse("document-upload"), {"file": pdf}, format="multipart")
 
-    def test_text_pdf_reaches_ready_with_correct_page_count(self):
+    def test_text_pdf_reaches_ready_with_correct_page_count(self, mock_create):
+        mock_create.side_effect = lambda model, input: make_fake_embeddings_response(input)
         response = self.upload("sample.pdf", make_text_pdf_bytes(num_pages=3))
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -159,29 +188,31 @@ class DocumentProcessingTests(APITestCase):
             list(chunks.values_list("chunk_index", flat=True)),
             list(range(chunks.count())),
         )
+        self.assertTrue(all(chunk.embedding is not None for chunk in chunks))
+        self.assertTrue(all(len(chunk.embedding) == 1536 for chunk in chunks))
 
-    def test_scanned_pdf_fails_with_clear_message(self):
+    def test_scanned_pdf_fails_with_clear_message(self, mock_create):
         response = self.upload("scanned.pdf", make_blank_pdf_bytes())
 
         document = Document.objects.get(id=response.data["id"])
         self.assertEqual(document.status, Document.Status.FAILED)
         self.assertIn("scanned", document.error_message)
 
-    def test_zero_page_pdf_fails_with_clear_message(self):
+    def test_zero_page_pdf_fails_with_clear_message(self, mock_create):
         response = self.upload("empty_pages.pdf", make_zero_page_pdf_bytes())
 
         document = Document.objects.get(id=response.data["id"])
         self.assertEqual(document.status, Document.Status.FAILED)
         self.assertIn("no pages", document.error_message)
 
-    def test_encrypted_pdf_fails_with_clear_message(self):
+    def test_encrypted_pdf_fails_with_clear_message(self, mock_create):
         response = self.upload("encrypted.pdf", make_encrypted_pdf_bytes())
 
         document = Document.objects.get(id=response.data["id"])
         self.assertEqual(document.status, Document.Status.FAILED)
         self.assertIn("password-protected", document.error_message)
 
-    def test_detail_endpoint_returns_current_status_and_error_message(self):
+    def test_detail_endpoint_returns_current_status_and_error_message(self, mock_create):
         upload_response = self.upload("scanned.pdf", make_blank_pdf_bytes())
 
         detail_response = self.client.get(reverse("document-detail", args=[upload_response.data["id"]]))

@@ -4,6 +4,7 @@ from pdfminer.pdfdocument import PDFPasswordIncorrect
 
 from docuMind.apps.documents.models import Document, DocumentChunk
 from docuMind.apps.documents.services.chunking import chunk_text
+from docuMind.apps.documents.services.embeddings import embed_chunks
 from docuMind.apps.documents.services.pdf_extraction import extract_pages
 
 
@@ -20,18 +21,25 @@ def process_document(document_id):
             raise ValueError("No extractable text — possibly a scanned PDF")
         doc.page_count = len(pages)
 
-        chunk_objects = []
-        chunk_index = 0
+        chunk_texts = []
+        chunk_pages = []
         for page_number, page_text in enumerate(pages, start=1):
             for chunk_content in chunk_text(page_text):
-                chunk_objects.append(DocumentChunk(
-                    document=doc,
-                    content=chunk_content,
-                    chunk_index=chunk_index,
-                    page_number=page_number,
-                ))
-                chunk_index += 1
-        DocumentChunk.objects.bulk_create(chunk_objects)
+                chunk_texts.append(chunk_content)
+                chunk_pages.append(page_number)
+
+        vectors = embed_chunks(chunk_texts) if chunk_texts else []
+
+        DocumentChunk.objects.bulk_create([
+            DocumentChunk(
+                document=doc,
+                content=text,
+                chunk_index=i,
+                page_number=chunk_pages[i],
+                embedding=vector,
+            )
+            for i, (text, vector) in enumerate(zip(chunk_texts, vectors))
+        ])
 
         doc.status = Document.Status.READY
         doc.processed_at = timezone.now()
