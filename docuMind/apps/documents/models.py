@@ -1,5 +1,5 @@
 from django.db import models
-from pgvector.django import VectorField
+from pgvector.django import HnswIndex, VectorField
 
 
 class Document(models.Model):
@@ -27,3 +27,12 @@ class DocumentChunk(models.Model):
 
     class Meta:
         ordering = ["document", "chunk_index"]
+        indexes = [
+            HnswIndex(
+                name="chunk_embedding_hnsw",
+                fields=["embedding"],
+                m=16,
+                ef_construction=64,
+                opclasses=["vector_cosine_ops"],
+            ),
+        ]

@@ -4,7 +4,7 @@ import tempfile
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
@@ -13,9 +13,15 @@ from rest_framework.test import APITestCase
 
 from docuMind.apps.documents.models import Document, DocumentChunk
 from docuMind.apps.documents.services.chunking import chunk_text
-from docuMind.apps.documents.services import embeddings
+from docuMind.apps.documents.services import embeddings, retrieval
 
 FAKE_EMBEDDING = [0.0] * 1536
+
+
+def unit_vector(axis: int) -> list[float]:
+    vector = [0.0] * 1536
+    vector[axis] = 1.0
+    return vector
 
 MEDIA_ROOT = tempfile.mkdtemp()
 
@@ -70,6 +76,60 @@ class ChunkTextTests(APITestCase):
     def test_empty_text_produces_no_chunks(self):
         self.assertEqual(chunk_text(""), [])
         self.assertEqual(chunk_text("   "), [])
+
+
+class RetrievalTests(TestCase):
+    def make_document(self, status_=Document.Status.READY):
+        return Document.objects.create(
+            original_filename="doc.pdf",
+            status=status_,
+            page_count=1,
+        )
+
+    def make_chunk(self, document, embedding, chunk_index=0, content="chunk content"):
+        return DocumentChunk.objects.create(
+            document=document,
+            content=content,
+            chunk_index=chunk_index,
+            page_number=1,
+            embedding=embedding,
+        )
+
+    @patch.object(retrieval, "embed_query")
+    def test_closest_chunk_ranks_first(self, mock_embed_query):
+        mock_embed_query.return_value = unit_vector(0)
+        document = self.make_document()
+        close = self.make_chunk(document, unit_vector(0), chunk_index=0, content="close chunk")
+        orthogonal = self.make_chunk(document, unit_vector(1), chunk_index=1, content="orthogonal chunk")
+        opposite = self.make_chunk(document, [-x for x in unit_vector(0)], chunk_index=2, content="opposite chunk")
+
+        results = retrieval.retrieve_relevant_chunks("what is this about?")
+
+        self.assertEqual([r.id for r in results], [close.id, orthogonal.id, opposite.id])
+
+    @patch.object(retrieval, "embed_query")
+    def test_document_id_scopes_to_one_document(self, mock_embed_query):
+        mock_embed_query.return_value = unit_vector(0)
+        document_a = self.make_document()
+        document_b = self.make_document()
+        chunk_a = self.make_chunk(document_a, unit_vector(0), content="chunk in doc a")
+        chunk_b = self.make_chunk(document_b, unit_vector(0), content="chunk in doc b")
+
+        results = retrieval.retrieve_relevant_chunks("query", document_id=document_a.id)
+
+        self.assertEqual([r.id for r in results], [chunk_a.id])
+
+    @patch.object(retrieval, "embed_query")
+    def test_chunks_from_non_ready_documents_are_excluded(self, mock_embed_query):
+        mock_embed_query.return_value = unit_vector(0)
+        ready_document = self.make_document(status_=Document.Status.READY)
+        processing_document = self.make_document(status_=Document.Status.PROCESSING)
+        ready_chunk = self.make_chunk(ready_document, unit_vector(0), content="ready chunk")
+        self.make_chunk(processing_document, unit_vector(0), content="processing chunk")
+
+        results = retrieval.retrieve_relevant_chunks("query")
+
+        self.assertEqual([r.id for r in results], [ready_chunk.id])
 
 
 class EmbedChunksBatchingTests(SimpleTestCase):
