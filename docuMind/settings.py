@@ -87,6 +87,9 @@ DATABASES = {
       }
   }
 
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+EMBEDDING_MODEL = os.environ.get('EMBEDDING_MODEL', 'text-embedding-3-small')
+
 
 
 # Password validation
