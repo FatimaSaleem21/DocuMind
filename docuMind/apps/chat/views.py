@@ -3,20 +3,34 @@ import json
 from django.db.transaction import non_atomic_requests
 from django.http import StreamingHttpResponse
 from django.utils.decorators import method_decorator
-from rest_framework import status
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from docuMind.apps.chat.models import ChatMessage
+from docuMind.apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
 from docuMind.apps.chat.services.rag import generate_answer, generate_answer_stream
 from docuMind.apps.documents.services.retrieval import retrieve_relevant_chunks
 
 
+@extend_schema(
+    request=ChatRequestSerializer,
+    responses=ChatResponseSerializer,
+    examples=[
+        OpenApiExample(
+            "Grounded answer",
+            value={"answer": "The late fee is $35 if payment is received after the due date.", "sources": [2]},
+            response_only=True,
+        ),
+    ],
+    description="Ask a question about your uploaded documents and get a single, complete answer.",
+)
 class ChatView(APIView):
     def post(self, request):
-        question = (request.data.get("question") or "").strip()
-        if not question:
-            return Response({"error": "question is required"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = ChatRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        question = serializer.validated_data["question"]
 
         chunks = retrieve_relevant_chunks(question)
         if not chunks:
@@ -31,12 +45,21 @@ class ChatView(APIView):
         return Response({"answer": answer, "sources": [c.page_number for c in chunks]})
 
 
+@extend_schema(
+    request=ChatRequestSerializer,
+    responses={200: OpenApiTypes.STR},
+    description=(
+        "Streams a grounded answer via Server-Sent Events. "
+        "Emits `token` events with `{content}`, then a final `done` event "
+        "with `{sources: [page_number, ...]}`, or an `error` event on failure."
+    ),
+)
 @method_decorator(non_atomic_requests, name="dispatch")
 class ChatStreamView(APIView):
     def post(self, request):
-        question = (request.data.get("question") or "").strip()
-        if not question:
-            return Response({"error": "question is required"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = ChatRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        question = serializer.validated_data["question"]
 
         chunks = retrieve_relevant_chunks(question)
 

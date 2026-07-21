@@ -280,3 +280,16 @@ class DocumentProcessingTests(APITestCase):
         self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual(detail_response.data["status"], Document.Status.FAILED)
         self.assertIn("scanned", detail_response.data["error_message"])
+
+
+class APIDocsTests(APITestCase):
+    def test_schema_endpoint_returns_valid_openapi_schema(self):
+        response = self.client.get(reverse("schema"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("openapi", response.get("Content-Type", "") + str(response.content[:50]))
+
+    def test_swagger_ui_renders(self):
+        response = self.client.get(reverse("swagger-ui"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

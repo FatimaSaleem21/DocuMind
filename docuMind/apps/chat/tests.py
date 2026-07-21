@@ -70,8 +70,14 @@ class ChatViewTests(APITestCase):
         response = self.post_question("")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("error", response.data)
+        self.assertIn("question", response.data)
         self.assertEqual(ChatMessage.objects.count(), 0)
+
+    def test_question_over_max_length_is_rejected(self):
+        response = self.post_question("a" * 2001)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("question", response.data)
 
     def test_missing_question_is_rejected(self):
         response = self.client.post(reverse("chat"), {}, format="json")
@@ -132,7 +138,7 @@ class ChatStreamViewTests(APITestCase):
         response = self.post_question("")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("error", response.data)
+        self.assertIn("question", response.data)
         self.assertNotEqual(response.get("Content-Type"), "text/event-stream")
 
     @patch.object(rag.client.chat.completions, "create")

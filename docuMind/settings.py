@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'corsheaders',
     'docuMind.apps.documents',
     'docuMind.apps.chat',
@@ -140,6 +141,16 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024  # 20MB
+
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'DocuMind API',
+    'DESCRIPTION': 'Upload financial PDFs, retrieve grounded answers via RAG.',
+    'VERSION': '1.0.0',
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
