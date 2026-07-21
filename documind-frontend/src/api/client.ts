@@ -13,8 +13,11 @@ function flattenErrorBody(body: unknown): string | null {
   return messages.length > 0 ? messages.join(" ") : null;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, options);
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const isFormData = options?.body instanceof FormData;
+  const headers = isFormData ? options?.headers : { "Content-Type": "application/json", ...options?.headers };
+
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -25,9 +28,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function get<T>(path: string): Promise<T> {
-  return request<T>(path);
+  return apiFetch<T>(path);
 }
 
 export function post<T>(path: string, body: FormData): Promise<T> {
-  return request<T>(path, { method: "POST", body });
+  return apiFetch<T>(path, { method: "POST", body });
 }

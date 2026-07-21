@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChatWindow } from "./components/chat/ChatWindow";
 import { DocumentList } from "./components/documents/DocumentList";
 
 type Tab = "documents" | "chat";
@@ -41,13 +42,7 @@ export default function App() {
       </nav>
 
       <main style={{ padding: "24px 0" }}>
-        {activeTab === "documents" ? (
-          <DocumentList />
-        ) : (
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--muted)", padding: "24px 0" }}>
-            chat coming soon
-          </div>
-        )}
+        {activeTab === "documents" ? <DocumentList /> : <ChatWindow />}
       </main>
     </div>
   );
