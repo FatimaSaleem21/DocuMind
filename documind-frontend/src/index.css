@@ -1,0 +1,35 @@
+:root {
+  --paper: #faf7f0;
+  --ink: #2b2924;
+  --rule: #e4e0d5;
+  --muted: #8a857a;
+
+  --verified: #2f6f62;
+  --verified-bg: #e4f0ec;
+  --pending: #b8860b;
+  --pending-bg: #fbf0da;
+  --failed: #b14a3d;
+  --failed-bg: #fbe9e5;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+#root {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
