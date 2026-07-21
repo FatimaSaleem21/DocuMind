@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'docuMind.apps.documents',
+    'docuMind.apps.chat',
 ]
 
 MIDDLEWARE = [
@@ -89,6 +90,7 @@ DATABASES = {
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 EMBEDDING_MODEL = os.environ.get('EMBEDDING_MODEL', 'text-embedding-3-small')
+CHAT_MODEL = os.environ.get('CHAT_MODEL', 'gpt-4o-mini')
 
 
 

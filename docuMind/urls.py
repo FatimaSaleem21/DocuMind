@@ -25,6 +25,7 @@ urlpatterns = [
     #    path('admin/', admin.site.urls),
     path('health/', health, name='health'),
     path('api/', include('docuMind.apps.documents.urls')),
+    path('api/', include('docuMind.apps.chat.urls')),
 ]
 
 if settings.DEBUG:
