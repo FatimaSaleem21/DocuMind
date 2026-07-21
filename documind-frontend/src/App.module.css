@@ -1,0 +1,82 @@
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--surface-border);
+  padding: 24px 16px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  margin-bottom: 32px;
+}
+
+.logoBadge {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoText {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.logoAccent {
+  color: var(--verified);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.navItem:hover {
+  background: var(--surface-border);
+}
+
+.navItemActive,
+.navItemActive:hover {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.main {
+  flex: 1;
+  padding: 40px 48px;
+  min-width: 0;
+}
+
+.mainInner {
+  max-width: 880px;
+}
+
+.pageTitle {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 24px;
+}

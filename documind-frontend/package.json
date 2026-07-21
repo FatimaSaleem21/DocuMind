@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@rolldown/binding-darwin-arm64": "^1.1.5",
+    "clsx": "^2.1.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

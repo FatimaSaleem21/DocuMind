@@ -1,0 +1,14 @@
+.wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.bubble {
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--surface-border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  max-width: 82%;
+}

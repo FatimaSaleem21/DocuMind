@@ -1,0 +1,58 @@
+.wrapper {
+  max-width: 82%;
+  margin-bottom: 28px;
+}
+
+.card {
+  border: 1px dashed #a9a398;
+  border-radius: var(--radius-sm);
+  padding: 16px 18px 0;
+  position: relative;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--surface) 0 6px, transparent 6px 12px);
+}
+
+.content {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.sourcesRow {
+  border-top: 1px dashed #a9a398;
+  margin: 14px 0 0;
+  padding: 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sourcesLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.sourceChips {
+  display: flex;
+  gap: 6px;
+}
+
+.sourceChip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--verified);
+  background: var(--verified-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+}

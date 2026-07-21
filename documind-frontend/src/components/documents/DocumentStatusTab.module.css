@@ -1,0 +1,22 @@
+.tab {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.ready {
+  color: var(--verified);
+  background: var(--verified-bg);
+}
+
+.processing,
+.pending {
+  color: var(--pending);
+  background: var(--pending-bg);
+}
+
+.failed {
+  color: var(--failed);
+  background: var(--failed-bg);
+}

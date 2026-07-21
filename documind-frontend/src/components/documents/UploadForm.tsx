@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { uploadDocument } from "../../api/documents";
+import styles from "./UploadForm.module.css";
 
 export function UploadForm({ onUploaded }: { onUploaded: () => void }) {
   const [uploading, setUploading] = useState(false);
@@ -24,26 +25,18 @@ export function UploadForm({ onUploaded }: { onUploaded: () => void }) {
 
   return (
     <div>
-      <button
-        onClick={() => inputRef.current?.click()}
-        disabled={uploading}
-        style={{
-          width: "100%",
-          background: "transparent",
-          border: "1px dashed var(--rule)",
-          borderRadius: 8,
-          padding: 14,
-          fontFamily: "var(--font-mono)",
-          fontSize: 13,
-          color: "#5F5A4E",
-          cursor: "pointer",
-        }}
-      >
+      <button onClick={() => inputRef.current?.click()} disabled={uploading} className={styles.button}>
         {uploading ? "uploading…" : "+ add document"}
       </button>
-      <input ref={inputRef} type="file" accept=".pdf" onChange={handleFileSelect} style={{ display: "none" }} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf"
+        onChange={handleFileSelect}
+        className={styles.hiddenInput}
+      />
       {error && (
-        <p role="alert" style={{ color: "var(--failed)", fontSize: 13, marginTop: 8 }}>
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       )}

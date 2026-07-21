@@ -1,0 +1,40 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease;
+}
+
+.row:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.statusBar {
+  width: 4px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--status-color);
+}
+
+.info {
+  flex: 1;
+}
+
+.filename {
+  font-size: 14px;
+}
+
+.meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.metaFailed {
+  color: var(--failed);
+}

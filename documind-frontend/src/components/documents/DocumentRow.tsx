@@ -1,5 +1,7 @@
+import clsx from "clsx";
 import type { Document } from "../../types/document";
-import { DocumentStatusTab, STATUS_CONFIG } from "./DocumentStatusTab";
+import { DocumentStatusTab, STATUS_COLOR } from "./DocumentStatusTab";
+import styles from "./DocumentRow.module.css";
 
 export function DocumentRow({ doc }: { doc: Document }) {
   const meta =
@@ -10,19 +12,14 @@ export function DocumentRow({ doc }: { doc: Document }) {
         : "processing…";
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderTop: "1px solid var(--rule)" }}>
-      <div style={{ width: 4, height: 32, borderRadius: 2, background: STATUS_CONFIG[doc.status].color }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14 }}>{doc.original_filename}</div>
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            color: doc.status === "failed" ? "var(--failed)" : "var(--muted)",
-          }}
-        >
-          {meta}
-        </div>
+    <div className={styles.row}>
+      <div
+        className={styles.statusBar}
+        style={{ "--status-color": STATUS_COLOR[doc.status] } as React.CSSProperties}
+      />
+      <div className={styles.info}>
+        <div className={styles.filename}>{doc.original_filename}</div>
+        <div className={clsx(styles.meta, doc.status === "failed" && styles.metaFailed)}>{meta}</div>
       </div>
       <DocumentStatusTab status={doc.status} />
     </div>

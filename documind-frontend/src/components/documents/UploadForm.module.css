@@ -1,0 +1,32 @@
+.button {
+  width: 100%;
+  background: var(--surface);
+  border: 1px dashed var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.button:hover:not(:disabled) {
+  box-shadow: var(--shadow-md);
+  border-color: var(--muted);
+}
+
+.button:disabled {
+  cursor: default;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.error {
+  color: var(--failed);
+  font-size: 13px;
+  margin-top: 8px;
+}
