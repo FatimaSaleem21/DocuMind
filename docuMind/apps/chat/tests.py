@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -24,6 +25,38 @@ def make_fake_chat_completion(content):
     choice = type("Choice", (), {"message": message})()
     response = type("Response", (), {"choices": [choice]})()
     return response
+
+
+def make_fake_stream(tokens):
+    def _chunk(token):
+        delta = type("Delta", (), {"content": token})()
+        choice = type("Choice", (), {"delta": delta})()
+        return type("Chunk", (), {"choices": [choice]})()
+
+    return [_chunk(t) for t in tokens]
+
+
+def make_fake_stream_that_errors(tokens_before_error):
+    def _generator():
+        for t in tokens_before_error:
+            delta = type("Delta", (), {"content": t})()
+            choice = type("Choice", (), {"delta": delta})()
+            yield type("Chunk", (), {"choices": [choice]})()
+        raise ConnectionError("stream dropped")
+
+    return _generator()
+
+
+def parse_sse(body: str):
+    events = []
+    for frame in body.strip().split("\n\n"):
+        if not frame:
+            continue
+        lines = frame.split("\n")
+        event_line = next(line for line in lines if line.startswith("event: "))
+        data_line = next(line for line in lines if line.startswith("data: "))
+        events.append((event_line[len("event: "):], json.loads(data_line[len("data: "):])))
+    return events
 
 
 class ChatViewTests(APITestCase):
@@ -86,6 +119,93 @@ class ChatViewTests(APITestCase):
         self.assertEqual(assistant_message.role, ChatMessage.Role.ASSISTANT)
         self.assertEqual(assistant_message.content, FAKE_ANSWER)
         self.assertEqual(list(assistant_message.source_chunks.all()), [chunk])
+
+
+class ChatStreamViewTests(APITestCase):
+    def post_question(self, question):
+        return self.client.post(reverse("chat-stream"), {"question": question}, format="json")
+
+    def test_empty_question_is_rejected_without_streaming(self):
+        response = self.post_question("")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertNotEqual(response.get("Content-Type"), "text/event-stream")
+
+    @patch.object(rag.client.chat.completions, "create")
+    @patch.object(retrieval, "embed_query")
+    def test_no_ready_documents_streams_fallback_without_calling_llm(self, mock_embed_query, mock_create):
+        mock_embed_query.return_value = unit_vector(0)
+
+        response = self.post_question("What is the late fee?")
+        body = b"".join(response.streaming_content).decode()
+        events = parse_sse(body)
+
+        self.assertEqual(response["Content-Type"], "text/event-stream")
+        self.assertEqual(events[0], ("token", {"content": "No documents have been processed yet."}))
+        self.assertEqual(events[-1], ("done", {"sources": []}))
+        mock_create.assert_not_called()
+        self.assertEqual(ChatMessage.objects.count(), 0)
+
+    @patch.object(rag.client.chat.completions, "create")
+    @patch.object(retrieval, "embed_query")
+    def test_grounded_answer_streams_tokens_and_persists(self, mock_embed_query, mock_create):
+        mock_embed_query.return_value = unit_vector(0)
+        mock_create.return_value = make_fake_stream(["The ", "late ", "fee is $35."])
+
+        document = Document.objects.create(
+            original_filename="statement.pdf",
+            status=Document.Status.READY,
+            page_count=1,
+        )
+        chunk = DocumentChunk.objects.create(
+            document=document,
+            content="A late fee of $35 will be charged for late payments.",
+            chunk_index=0,
+            page_number=2,
+            embedding=unit_vector(0),
+        )
+
+        response = self.post_question("What is the late fee?")
+        body = b"".join(response.streaming_content).decode()
+        events = parse_sse(body)
+
+        token_events = [e for e in events if e[0] == "token"]
+        self.assertEqual([e[1]["content"] for e in token_events], ["The ", "late ", "fee is $35."])
+        self.assertEqual(events[-1], ("done", {"sources": [2]}))
+
+        self.assertEqual(ChatMessage.objects.count(), 2)
+        user_message, assistant_message = ChatMessage.objects.order_by("created_at")
+        self.assertEqual(user_message.content, "What is the late fee?")
+        self.assertEqual(assistant_message.content, "The late fee is $35.")
+        self.assertEqual(list(assistant_message.source_chunks.all()), [chunk])
+
+    @patch.object(rag.client.chat.completions, "create")
+    @patch.object(retrieval, "embed_query")
+    def test_mid_stream_error_yields_error_event_without_persisting(self, mock_embed_query, mock_create):
+        mock_embed_query.return_value = unit_vector(0)
+        mock_create.return_value = make_fake_stream_that_errors(["partial "])
+
+        document = Document.objects.create(
+            original_filename="statement.pdf",
+            status=Document.Status.READY,
+            page_count=1,
+        )
+        DocumentChunk.objects.create(
+            document=document,
+            content="A late fee of $35 will be charged for late payments.",
+            chunk_index=0,
+            page_number=2,
+            embedding=unit_vector(0),
+        )
+
+        response = self.post_question("What is the late fee?")
+        body = b"".join(response.streaming_content).decode()
+        events = parse_sse(body)
+
+        self.assertEqual(events[0], ("token", {"content": "partial "}))
+        self.assertEqual(events[-1][0], "error")
+        self.assertEqual(ChatMessage.objects.count(), 0)
 
 
 class BuildPromptTests(TestCase):
