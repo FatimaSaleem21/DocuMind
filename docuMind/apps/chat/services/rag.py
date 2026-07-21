@@ -23,7 +23,9 @@ def build_prompt(question: str, chunks: list[DocumentChunk]) -> str:
     stop=stop_after_attempt(3),
 )
 def _create_chat_completion(messages: list[dict]) -> str:
-    response = client.chat.completions.create(model=settings.CHAT_MODEL, messages=messages)
+    response = client.chat.completions.create(
+        model=settings.CHAT_MODEL, messages=messages, timeout=settings.CHAT_TIMEOUT_SECONDS
+    )
     return response.choices[0].message.content
 
 
@@ -41,7 +43,9 @@ def generate_answer(question: str, chunks: list[DocumentChunk]) -> str:
     stop=stop_after_attempt(3),
 )
 def _open_chat_stream(messages: list[dict]):
-    return client.chat.completions.create(model=settings.CHAT_MODEL, messages=messages, stream=True)
+    return client.chat.completions.create(
+        model=settings.CHAT_MODEL, messages=messages, stream=True, timeout=settings.CHAT_TIMEOUT_SECONDS
+    )
 
 
 def generate_answer_stream(question: str, chunks: list[DocumentChunk]):

@@ -1,10 +1,13 @@
 import json
 from unittest.mock import patch
 
+import httpx
 from django.test import TestCase
 from django.urls import reverse
+from openai import RateLimitError
 from rest_framework import status
 from rest_framework.test import APITestCase
+from tenacity import RetryError
 
 from docuMind.apps.chat.models import ChatMessage
 from docuMind.apps.chat.services import rag
@@ -206,6 +209,36 @@ class ChatStreamViewTests(APITestCase):
         self.assertEqual(events[0], ("token", {"content": "partial "}))
         self.assertEqual(events[-1][0], "error")
         self.assertEqual(ChatMessage.objects.count(), 0)
+
+
+def make_rate_limit_error():
+    response = httpx.Response(
+        status_code=429,
+        request=httpx.Request("POST", "https://api.openai.com/v1/chat/completions"),
+    )
+    return RateLimitError("rate limited", response=response, body=None)
+
+
+class ChatResilienceTests(TestCase):
+    @patch("time.sleep")
+    @patch.object(rag.client.chat.completions, "create")
+    def test_transient_error_is_retried_and_eventually_raises(self, mock_create, mock_sleep):
+        mock_create.side_effect = make_rate_limit_error()
+
+        with self.assertRaises(RetryError):
+            rag._create_chat_completion([{"role": "user", "content": "hi"}])
+
+        self.assertEqual(mock_create.call_count, 3)
+
+    @patch("time.sleep")
+    @patch.object(rag.client.chat.completions, "create")
+    def test_transient_error_on_stream_open_is_retried(self, mock_create, mock_sleep):
+        mock_create.side_effect = make_rate_limit_error()
+
+        with self.assertRaises(RetryError):
+            rag._open_chat_stream([{"role": "user", "content": "hi"}])
+
+        self.assertEqual(mock_create.call_count, 3)
 
 
 class BuildPromptTests(TestCase):

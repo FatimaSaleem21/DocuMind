@@ -93,6 +93,7 @@ DATABASES = {
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 EMBEDDING_MODEL = os.environ.get('EMBEDDING_MODEL', 'text-embedding-3-small')
 CHAT_MODEL = os.environ.get('CHAT_MODEL', 'gpt-4o-mini')
+CHAT_TIMEOUT_SECONDS = float(os.environ.get('CHAT_TIMEOUT_SECONDS', 60))
 
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
 
