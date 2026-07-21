@@ -17,6 +17,9 @@ class Document(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     processed_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        ordering = ["-uploaded_at"]
+
 
 class DocumentChunk(models.Model):
     document = models.ForeignKey(Document, related_name="chunks", on_delete=models.CASCADE)

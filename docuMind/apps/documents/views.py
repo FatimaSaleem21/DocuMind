@@ -1,4 +1,4 @@
-from rest_framework.generics import CreateAPIView, RetrieveAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser
 
 from docuMind.apps.documents.models import Document
@@ -6,7 +6,7 @@ from docuMind.apps.documents.serializers import DocumentSerializer
 from docuMind.apps.documents.tasks import process_document
 
 
-class DocumentUploadView(CreateAPIView):
+class DocumentUploadView(ListCreateAPIView):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
     parser_classes = [MultiPartParser]
