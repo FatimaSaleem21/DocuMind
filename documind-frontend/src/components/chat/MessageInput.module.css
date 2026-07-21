@@ -1,0 +1,36 @@
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  padding: 11px 16px;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.send {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.sendActive {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  cursor: pointer;
+}
+
+.sendDisabled {
+  background: var(--surface-border);
+  color: var(--muted);
+  cursor: default;
+}
