@@ -137,6 +137,7 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
         self.assertIn("error", response.data)
+        self.assertNotIn("embedding service unreachable", response.data["error"])
         self.assertEqual(ChatMessage.objects.count(), 0)
 
 
@@ -240,7 +241,7 @@ class ChatStreamViewTests(APITestCase):
 
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0][0], "error")
-        self.assertIn("embedding service unreachable", events[0][1]["message"])
+        self.assertNotIn("embedding service unreachable", events[0][1]["message"])
         self.assertEqual(ChatMessage.objects.count(), 0)
 
 

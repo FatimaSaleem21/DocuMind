@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.db.transaction import non_atomic_requests
 from django.http import StreamingHttpResponse
@@ -13,6 +14,11 @@ from docuMind.apps.chat.models import ChatMessage
 from docuMind.apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
 from docuMind.apps.chat.services.rag import generate_answer, generate_answer_stream
 from docuMind.apps.documents.services.retrieval import retrieve_relevant_chunks
+
+logger = logging.getLogger(__name__)
+
+GENERIC_RETRIEVAL_ERROR = "We're having trouble searching your documents right now. Please try again shortly."
+GENERIC_ANSWER_ERROR = "We're having trouble generating an answer right now. Please try again shortly."
 
 
 @extend_schema(
@@ -35,11 +41,9 @@ class ChatView(APIView):
 
         try:
             chunks = retrieve_relevant_chunks(question)
-        except Exception as e:
-            return Response(
-                {"error": f"Unable to search documents right now: {e}"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+        except Exception:
+            logger.exception("Failed to retrieve chunks for chat question")
+            return Response({"error": GENERIC_RETRIEVAL_ERROR}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         if not chunks:
             return Response({"answer": "No documents have been processed yet."})
@@ -71,14 +75,15 @@ class ChatStreamView(APIView):
 
         try:
             chunks = retrieve_relevant_chunks(question)
-            retrieval_error = None
-        except Exception as e:
+            retrieval_failed = False
+        except Exception:
+            logger.exception("Failed to retrieve chunks for chat question")
             chunks = None
-            retrieval_error = str(e)
+            retrieval_failed = True
 
         def event_stream():
-            if retrieval_error is not None:
-                yield f"event: error\ndata: {json.dumps({'message': retrieval_error})}\n\n"
+            if retrieval_failed:
+                yield f"event: error\ndata: {json.dumps({'message': GENERIC_RETRIEVAL_ERROR})}\n\n"
                 return
 
             if not chunks:
@@ -91,8 +96,9 @@ class ChatStreamView(APIView):
                 for token in generate_answer_stream(question, chunks):
                     full_answer += token
                     yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
-            except Exception as e:
-                yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            except Exception:
+                logger.exception("Failed to generate answer for chat question")
+                yield f"event: error\ndata: {json.dumps({'message': GENERIC_ANSWER_ERROR})}\n\n"
                 return
 
             sources = [c.page_number for c in chunks]
