@@ -9,6 +9,10 @@ class Document(models.Model):
         READY = "ready"
         FAILED = "failed"
 
+    # Opaque per-browser id (sent via the X-Session-Id header) so each visitor
+    # only sees and queries their own uploads — a lightweight demo isolation
+    # boundary, not authentication.
+    session_id = models.CharField(max_length=64, blank=True, default="", db_index=True)
     file = models.FileField(upload_to="documents/")
     original_filename = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)

@@ -15,6 +15,7 @@ from docuMind.apps.chat.ratelimit import over_daily_limit
 from docuMind.apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
 from docuMind.apps.chat.services.rag import generate_answer, generate_answer_stream
 from docuMind.apps.documents.services.retrieval import retrieve_relevant_chunks
+from docuMind.apps.documents.session import session_id_from_request
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class ChatView(APIView):
         question = serializer.validated_data["question"]
 
         try:
-            chunks = retrieve_relevant_chunks(question)
+            chunks = retrieve_relevant_chunks(question, session_id=session_id_from_request(request))
         except Exception:
             logger.exception("Failed to retrieve chunks for chat question")
             return Response({"error": GENERIC_RETRIEVAL_ERROR}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -84,7 +85,7 @@ class ChatStreamView(APIView):
             )
 
         try:
-            chunks = retrieve_relevant_chunks(question)
+            chunks = retrieve_relevant_chunks(question, session_id=session_id_from_request(request))
             retrieval_failed = False
         except Exception:
             logger.exception("Failed to retrieve chunks for chat question")

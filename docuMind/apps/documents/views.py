@@ -4,6 +4,7 @@ from rest_framework.parsers import MultiPartParser
 
 from docuMind.apps.documents.models import Document
 from docuMind.apps.documents.serializers import DocumentSerializer
+from docuMind.apps.documents.session import session_id_from_request
 from docuMind.apps.documents.tasks import process_document
 
 DOCUMENT_EXAMPLE = {
@@ -28,12 +29,15 @@ DOCUMENT_EXAMPLE = {
     ),
 )
 class DocumentUploadView(ListCreateAPIView):
-    queryset = Document.objects.all()
     serializer_class = DocumentSerializer
     parser_classes = [MultiPartParser]
 
+    def get_queryset(self):
+        # Only this visitor's uploads (X-Session-Id header).
+        return Document.objects.filter(session_id=session_id_from_request(self.request))
+
     def perform_create(self, serializer):
-        document = serializer.save()
+        document = serializer.save(session_id=session_id_from_request(self.request))
         process_document.delay(document.id)
 
 
@@ -42,5 +46,8 @@ class DocumentUploadView(ListCreateAPIView):
     examples=[OpenApiExample("Document detail", value=DOCUMENT_EXAMPLE, response_only=True)],
 )
 class DocumentDetailView(RetrieveAPIView):
-    queryset = Document.objects.all()
     serializer_class = DocumentSerializer
+
+    def get_queryset(self):
+        # A visitor can only poll their own documents by id.
+        return Document.objects.filter(session_id=session_id_from_request(self.request))

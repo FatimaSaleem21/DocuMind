@@ -1,4 +1,4 @@
-import { API_URL, flattenErrorBody } from "./client";
+import { API_URL, flattenErrorBody, getSessionId } from "./client";
 
 export async function streamChatMessage(
   question: string,
@@ -10,7 +10,7 @@ export async function streamChatMessage(
   try {
     res = await fetch(`${API_URL}/chat/stream/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
       body: JSON.stringify({ question }),
     });
   } catch {

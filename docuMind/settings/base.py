@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -96,6 +98,10 @@ CHAT_TIMEOUT_SECONDS = float(os.environ.get('CHAT_TIMEOUT_SECONDS', 60))
 CHAT_DAILY_IP_LIMIT = int(os.environ.get('CHAT_DAILY_IP_LIMIT', 50))
 
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
+
+# Allow the custom per-visitor scoping header through CORS preflight (the
+# default allow-list doesn't include it).
+CORS_ALLOW_HEADERS = (*default_headers, 'x-session-id')
 
 
 # Password validation

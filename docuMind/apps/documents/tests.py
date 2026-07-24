@@ -79,11 +79,12 @@ class ChunkTextTests(APITestCase):
 
 
 class RetrievalTests(TestCase):
-    def make_document(self, status_=Document.Status.READY):
+    def make_document(self, status_=Document.Status.READY, session_id="sess-1"):
         return Document.objects.create(
             original_filename="doc.pdf",
             status=status_,
             page_count=1,
+            session_id=session_id,
         )
 
     def make_chunk(self, document, embedding, chunk_index=0, content="chunk content"):
@@ -103,7 +104,7 @@ class RetrievalTests(TestCase):
         orthogonal = self.make_chunk(document, unit_vector(1), chunk_index=1, content="orthogonal chunk")
         opposite = self.make_chunk(document, [-x for x in unit_vector(0)], chunk_index=2, content="opposite chunk")
 
-        results = retrieval.retrieve_relevant_chunks("what is this about?")
+        results = retrieval.retrieve_relevant_chunks("what is this about?", session_id="sess-1")
 
         self.assertEqual([r.id for r in results], [close.id, orthogonal.id, opposite.id])
 
@@ -115,7 +116,7 @@ class RetrievalTests(TestCase):
         chunk_a = self.make_chunk(document_a, unit_vector(0), content="chunk in doc a")
         self.make_chunk(document_b, unit_vector(0), content="chunk in doc b")
 
-        results = retrieval.retrieve_relevant_chunks("query", document_id=document_a.id)
+        results = retrieval.retrieve_relevant_chunks("query", session_id="sess-1", document_id=document_a.id)
 
         self.assertEqual([r.id for r in results], [chunk_a.id])
 
@@ -127,9 +128,21 @@ class RetrievalTests(TestCase):
         ready_chunk = self.make_chunk(ready_document, unit_vector(0), content="ready chunk")
         self.make_chunk(processing_document, unit_vector(0), content="processing chunk")
 
-        results = retrieval.retrieve_relevant_chunks("query")
+        results = retrieval.retrieve_relevant_chunks("query", session_id="sess-1")
 
         self.assertEqual([r.id for r in results], [ready_chunk.id])
+
+    @patch.object(retrieval, "embed_query")
+    def test_chunks_are_scoped_to_session(self, mock_embed_query):
+        mock_embed_query.return_value = unit_vector(0)
+        mine = self.make_document(session_id="mine")
+        theirs = self.make_document(session_id="theirs")
+        my_chunk = self.make_chunk(mine, unit_vector(0), content="my chunk")
+        self.make_chunk(theirs, unit_vector(0), content="their chunk")
+
+        results = retrieval.retrieve_relevant_chunks("query", session_id="mine")
+
+        self.assertEqual([r.id for r in results], [my_chunk.id])
 
 
 class EmbedChunksBatchingTests(SimpleTestCase):
@@ -194,6 +207,26 @@ class DocumentUploadTests(APITestCase):
         response = self.upload(empty)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_is_scoped_to_the_requesting_session(self):
+        url = reverse("document-upload")
+        self.client.post(
+            url,
+            {"file": SimpleUploadedFile("a.pdf", b"%PDF-1.4 aaa", content_type="application/pdf")},
+            format="multipart",
+            HTTP_X_SESSION_ID="sess-a",
+        )
+        self.client.post(
+            url,
+            {"file": SimpleUploadedFile("b.pdf", b"%PDF-1.4 bbb", content_type="application/pdf")},
+            format="multipart",
+            HTTP_X_SESSION_ID="sess-b",
+        )
+
+        response = self.client.get(url, HTTP_X_SESSION_ID="sess-a")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([doc["original_filename"] for doc in response.data], ["a.pdf"])
 
 
 def make_fake_embeddings_response(texts):
