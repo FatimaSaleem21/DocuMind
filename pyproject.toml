@@ -1,0 +1,6 @@
+[tool.ruff]
+line-length = 119
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

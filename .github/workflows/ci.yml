@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: "pip"
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint backend (ruff)
+        run: ruff check .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: documind-frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: documind-frontend
+        run: npm ci
+
+      - name: Lint frontend (oxlint)
+        working-directory: documind-frontend
+        run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: docufind
+          POSTGRES_USER: docufind
+          POSTGRES_PASSWORD: docufind
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U docufind"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_DB: docufind
+      POSTGRES_USER: docufind
+      POSTGRES_PASSWORD: docufind
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: python manage.py test
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: documind-frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: documind-frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: documind-frontend
+        run: npm run build
