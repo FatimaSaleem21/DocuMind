@@ -12,8 +12,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from docuMind.apps.documents.models import Document, DocumentChunk
-from docuMind.apps.documents.services.chunking import chunk_text
 from docuMind.apps.documents.services import embeddings, retrieval
+from docuMind.apps.documents.services.chunking import chunk_text
 
 FAKE_EMBEDDING = [0.0] * 1536
 
@@ -113,7 +113,7 @@ class RetrievalTests(TestCase):
         document_a = self.make_document()
         document_b = self.make_document()
         chunk_a = self.make_chunk(document_a, unit_vector(0), content="chunk in doc a")
-        chunk_b = self.make_chunk(document_b, unit_vector(0), content="chunk in doc b")
+        self.make_chunk(document_b, unit_vector(0), content="chunk in doc b")
 
         results = retrieval.retrieve_relevant_chunks("query", document_id=document_a.id)
 
