@@ -1,6 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL;
+export const API_URL = import.meta.env.VITE_API_URL;
 
-function flattenErrorBody(body: unknown): string | null {
+export function flattenErrorBody(body: unknown): string | null {
   if (!body || typeof body !== "object") return null;
   const messages: string[] = [];
   for (const value of Object.values(body as Record<string, unknown>)) {

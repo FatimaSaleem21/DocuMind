@@ -18,7 +18,7 @@ export function MessageList({ messages, isLoading }: { messages: ChatMessage[]; 
         m.role === "user" ? (
           <UserMessage key={m.id} content={m.content} />
         ) : (
-          <AnswerReceipt key={m.id} content={m.content} sources={m.sources} />
+          <AnswerReceipt key={m.id} content={m.content} sources={m.sources} isError={m.isError} />
         ),
       )}
       {isLoading && <p className={styles.hint}>thinking…</p>}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { postChatMessage } from "../api/chat";
+import { streamChatMessage } from "../api/chat";
 import type { ChatMessage } from "../types/chat";
 
 export function useChat() {
@@ -8,23 +8,30 @@ export function useChat() {
 
   async function sendMessage(question: string) {
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", content: question };
-    setMessages((prev) => [...prev, userMsg]);
+    const assistantId = crypto.randomUUID();
+    setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
     setIsLoading(true);
 
-    try {
-      const { answer, sources } = await postChatMessage(question);
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: answer, sources },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: "Something went wrong — try asking again." },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
+    await streamChatMessage(
+      question,
+      (token) => {
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + token } : m)));
+      },
+      (sources) => {
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, sources } : m)));
+        setIsLoading(false);
+      },
+      (errorMessage) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: errorMessage || "Something went wrong — try asking again.", isError: true }
+              : m,
+          ),
+        );
+        setIsLoading(false);
+      },
+    );
   }
 
   return { messages, isLoading, sendMessage };

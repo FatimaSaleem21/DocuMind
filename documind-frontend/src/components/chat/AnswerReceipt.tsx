@@ -1,10 +1,19 @@
+import clsx from "clsx";
 import styles from "./AnswerReceipt.module.css";
 
-export function AnswerReceipt({ content, sources }: { content: string; sources?: number[] }) {
+export function AnswerReceipt({
+  content,
+  sources,
+  isError,
+}: {
+  content: string;
+  sources?: number[];
+  isError?: boolean;
+}) {
   return (
     <div className={styles.wrapper}>
-      <div className={styles.card}>
-        <p className={styles.content}>{content}</p>
+      <div className={clsx(styles.card, isError && styles.cardError)}>
+        <p className={clsx(styles.content, isError && styles.contentError)}>{content}</p>
         {sources && sources.length > 0 && (
           <div className={styles.sourcesRow}>
             <span className={styles.sourcesLabel}>sources</span>
