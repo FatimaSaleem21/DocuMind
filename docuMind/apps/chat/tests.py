@@ -2,13 +2,14 @@ import json
 from unittest.mock import patch
 
 import httpx
-from django.test import TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from openai import RateLimitError
 from rest_framework import status
 from rest_framework.test import APITestCase
 from tenacity import RetryError
 
+from docuMind.apps.chat import ratelimit, views
 from docuMind.apps.chat.models import ChatMessage
 from docuMind.apps.chat.services import rag
 from docuMind.apps.documents.models import Document, DocumentChunk
@@ -272,6 +273,67 @@ class ChatResilienceTests(TestCase):
             rag._open_chat_stream([{"role": "user", "content": "hi"}])
 
         self.assertEqual(mock_create.call_count, 3)
+
+
+class ChatStreamRateLimitTests(APITestCase):
+    def post_question(self, question):
+        return self.client.post(reverse("chat-stream"), {"question": question}, format="json")
+
+    @patch.object(views, "over_daily_limit", return_value=True)
+    def test_over_daily_limit_returns_429_without_streaming(self, mock_limit):
+        response = self.post_question("What is the late fee?")
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertNotEqual(response.get("Content-Type"), "text/event-stream")
+        self.assertIn("detail", response.data)
+        mock_limit.assert_called_once()
+
+
+class FakeRedis:
+    """Minimal in-memory stand-in for the counter operations the limiter uses."""
+
+    def __init__(self):
+        self.counts = {}
+        self.expiries = {}
+
+    def incr(self, key):
+        self.counts[key] = self.counts.get(key, 0) + 1
+        return self.counts[key]
+
+    def expire(self, key, ttl):
+        self.expiries[key] = ttl
+
+
+class DailyLimitCounterTests(TestCase):
+    def _request(self, ip="1.2.3.4"):
+        request = RequestFactory().post("/api/chat/stream/")
+        request.META["HTTP_X_FORWARDED_FOR"] = f"{ip}, 10.0.0.1"
+        return request
+
+    def test_client_ip_uses_first_forwarded_address(self):
+        self.assertEqual(ratelimit.client_ip(self._request("203.0.113.9")), "203.0.113.9")
+
+    @override_settings(CHAT_DAILY_IP_LIMIT=3)
+    def test_blocks_once_the_limit_is_exceeded(self):
+        fake = FakeRedis()
+        with patch.object(ratelimit.redis.Redis, "from_url", return_value=fake):
+            results = [ratelimit.over_daily_limit(self._request()) for _ in range(4)]
+
+        self.assertEqual(results, [False, False, False, True])
+        # TTL is set exactly once, on the first request of the day.
+        self.assertEqual(len(fake.expiries), 1)
+        self.assertEqual(next(iter(fake.expiries.values())), ratelimit.SECONDS_PER_DAY)
+
+    @override_settings(CHAT_DAILY_IP_LIMIT=0)
+    def test_disabled_when_limit_non_positive(self):
+        with patch.object(ratelimit.redis.Redis, "from_url") as mock_from_url:
+            self.assertFalse(ratelimit.over_daily_limit(self._request()))
+            mock_from_url.assert_not_called()
+
+    @override_settings(CHAT_DAILY_IP_LIMIT=5)
+    def test_fails_open_when_redis_unreachable(self):
+        with patch.object(ratelimit.redis.Redis, "from_url", side_effect=ratelimit.redis.RedisError("down")):
+            self.assertFalse(ratelimit.over_daily_limit(self._request()))
 
 
 class BuildPromptTests(TestCase):

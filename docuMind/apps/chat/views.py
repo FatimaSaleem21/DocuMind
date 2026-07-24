@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from docuMind.apps.chat.models import ChatMessage
+from docuMind.apps.chat.ratelimit import over_daily_limit
 from docuMind.apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
 from docuMind.apps.chat.services.rag import generate_answer, generate_answer_stream
 from docuMind.apps.documents.services.retrieval import retrieve_relevant_chunks
@@ -68,6 +69,15 @@ class ChatStreamView(APIView):
         serializer = ChatRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         question = serializer.validated_data["question"]
+
+        # Per-IP daily cap to protect the OpenAI bill on a public demo. Returned
+        # as a plain JSON 429 (not an SSE event) so the frontend's non-OK branch
+        # renders it as a normal error before it starts reading the stream.
+        if over_daily_limit(request):
+            return Response(
+                {"detail": "Daily request limit reached. Please try again tomorrow."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
 
         try:
             chunks = retrieve_relevant_chunks(question)
