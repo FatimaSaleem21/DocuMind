@@ -28,7 +28,27 @@ MIDDLEWARE = [
     *MIDDLEWARE[1:],  # noqa: F405  (MIDDLEWARE comes from the star import above)
 ]
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# User uploads (media) go to S3-compatible object storage so the web and worker
+# containers share one filesystem-of-record — local disk isn't shared between
+# them and is ephemeral on the host. Static files stay on WhiteNoise.
+# Works with any S3-compatible provider (Cloudflare R2, AWS S3, Backblaze B2);
+# for R2, AWS_S3_ENDPOINT_URL is the account endpoint and region is 'auto'.
+STORAGES = {
+    'default': {
+        'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        'OPTIONS': {
+            'access_key': os.environ['AWS_ACCESS_KEY_ID'],
+            'secret_key': os.environ['AWS_SECRET_ACCESS_KEY'],
+            'bucket_name': os.environ['AWS_STORAGE_BUCKET_NAME'],
+            'endpoint_url': os.environ['AWS_S3_ENDPOINT_URL'],
+            'region_name': os.environ.get('AWS_S3_REGION_NAME', 'auto'),
+            'signature_version': 's3v4',
+        },
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # Railway/Render terminate TLS at the edge and forward this header.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
