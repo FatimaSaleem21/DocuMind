@@ -27,6 +27,7 @@ services:
       ports:
         - "8001:8000"
       environment: &django-env
+        DJANGO_SETTINGS_MODULE: docuMind.settings.base
         POSTGRES_USER: docufind
         POSTGRES_PASSWORD: docufind
         POSTGRES_HOST: db

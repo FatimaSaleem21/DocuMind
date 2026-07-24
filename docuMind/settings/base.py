@@ -14,19 +14,15 @@ import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-k0q(qiy)7v3jw&_(ex26p4r$yk5hu4&1&#e@+bf_#7jj)z9p5&'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-k0q(qiy)7v3jw&_(ex26p4r$yk5hu4&1&#e@+bf_#7jj)z9p5&')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else []
 
 
 # Application definition
@@ -60,8 +56,7 @@ ROOT_URLCONF = 'docuMind.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -81,15 +76,15 @@ WSGI_APPLICATION = 'docuMind.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-      'default': {
-          'ENGINE': 'django.db.backends.postgresql',
-          'NAME': os.environ.get('POSTGRES_DB', 'docufind'),
-          'USER': os.environ.get('POSTGRES_USER', 'docufind'),
-          'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'docufind'),
-          'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
-          'PORT': os.environ.get('POSTGRES_PORT', '5432'),
-      }
-  }
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB', 'docufind'),
+        'USER': os.environ.get('POSTGRES_USER', 'docufind'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'docufind'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+    }
+}
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 EMBEDDING_MODEL = os.environ.get('EMBEDDING_MODEL', 'text-embedding-3-small')
@@ -97,7 +92,6 @@ CHAT_MODEL = os.environ.get('CHAT_MODEL', 'gpt-4o-mini')
 CHAT_TIMEOUT_SECONDS = float(os.environ.get('CHAT_TIMEOUT_SECONDS', 60))
 
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
-
 
 
 # Password validation
@@ -135,6 +129,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files (user uploads)
 MEDIA_URL = 'media/'
@@ -162,4 +157,3 @@ CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-
