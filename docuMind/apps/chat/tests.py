@@ -129,6 +129,16 @@ class ChatViewTests(APITestCase):
         self.assertEqual(assistant_message.content, FAKE_ANSWER)
         self.assertEqual(list(assistant_message.source_chunks.all()), [chunk])
 
+    @patch.object(retrieval, "embed_query")
+    def test_retrieval_failure_returns_clean_error_not_500(self, mock_embed_query):
+        mock_embed_query.side_effect = RuntimeError("embedding service unreachable")
+
+        response = self.post_question("What is the late fee?")
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn("error", response.data)
+        self.assertEqual(ChatMessage.objects.count(), 0)
+
 
 class ChatStreamViewTests(APITestCase):
     def post_question(self, question):
@@ -214,6 +224,23 @@ class ChatStreamViewTests(APITestCase):
 
         self.assertEqual(events[0], ("token", {"content": "partial "}))
         self.assertEqual(events[-1][0], "error")
+        self.assertEqual(ChatMessage.objects.count(), 0)
+
+    @patch.object(retrieval, "embed_query")
+    def test_retrieval_failure_yields_error_event_not_500(self, mock_embed_query):
+        mock_embed_query.side_effect = RuntimeError("embedding service unreachable")
+
+        response = self.post_question("What is the late fee?")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "text/event-stream")
+
+        body = b"".join(response.streaming_content).decode()
+        events = parse_sse(body)
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0][0], "error")
+        self.assertIn("embedding service unreachable", events[0][1]["message"])
         self.assertEqual(ChatMessage.objects.count(), 0)
 
 

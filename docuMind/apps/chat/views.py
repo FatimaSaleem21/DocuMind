@@ -5,6 +5,7 @@ from django.http import StreamingHttpResponse
 from django.utils.decorators import method_decorator
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, extend_schema
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -32,7 +33,14 @@ class ChatView(APIView):
         serializer.is_valid(raise_exception=True)
         question = serializer.validated_data["question"]
 
-        chunks = retrieve_relevant_chunks(question)
+        try:
+            chunks = retrieve_relevant_chunks(question)
+        except Exception as e:
+            return Response(
+                {"error": f"Unable to search documents right now: {e}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         if not chunks:
             return Response({"answer": "No documents have been processed yet."})
 
@@ -61,9 +69,18 @@ class ChatStreamView(APIView):
         serializer.is_valid(raise_exception=True)
         question = serializer.validated_data["question"]
 
-        chunks = retrieve_relevant_chunks(question)
+        try:
+            chunks = retrieve_relevant_chunks(question)
+            retrieval_error = None
+        except Exception as e:
+            chunks = None
+            retrieval_error = str(e)
 
         def event_stream():
+            if retrieval_error is not None:
+                yield f"event: error\ndata: {json.dumps({'message': retrieval_error})}\n\n"
+                return
+
             if not chunks:
                 yield f"event: token\ndata: {json.dumps({'content': 'No documents have been processed yet.'})}\n\n"
                 yield f"event: done\ndata: {json.dumps({'sources': []})}\n\n"
