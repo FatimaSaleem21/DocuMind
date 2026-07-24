@@ -2,7 +2,7 @@ import os
 
 from celery import Celery
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'docuMind.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'docuMind.settings.base')
 
 app = Celery('docuMind')
 app.config_from_object('django.conf:settings', namespace='CELERY')
