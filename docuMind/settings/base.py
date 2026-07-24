@@ -91,6 +91,10 @@ EMBEDDING_MODEL = os.environ.get('EMBEDDING_MODEL', 'text-embedding-3-small')
 CHAT_MODEL = os.environ.get('CHAT_MODEL', 'gpt-4o-mini')
 CHAT_TIMEOUT_SECONDS = float(os.environ.get('CHAT_TIMEOUT_SECONDS', 60))
 
+# Per-IP daily cap on the streaming chat endpoint (protects the OpenAI bill on a
+# public demo). Set to 0 or below to disable.
+CHAT_DAILY_IP_LIMIT = int(os.environ.get('CHAT_DAILY_IP_LIMIT', 50))
+
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
 
 
@@ -157,3 +161,22 @@ CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+
+# Log to stdout so errors surface in the platform's log stream. Without this,
+# with DEBUG=False Django swallows request tracebacks (it only mails admins,
+# which isn't configured), leaving 500s invisible in production logs.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {'format': '{asctime} {levelname} {name} {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'},
+    },
+    'root': {'handlers': ['console'], 'level': 'INFO'},
+    'loggers': {
+        # Emit full tracebacks for unhandled request exceptions.
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+    },
+}
