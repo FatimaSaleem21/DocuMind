@@ -54,12 +54,19 @@ deliberate, up-front choice here, not something to discover in production.
 The `Procfile` uses `gthread` workers accordingly:
 
 ```
-web: gunicorn docuMind.wsgi:application --worker-class=gthread --threads=4 --workers=2 --timeout=120
-worker: celery -A docuMind worker --loglevel=info
+web: gunicorn docuMind.wsgi:application --worker-class=gthread --threads=4 --workers=2 --timeout=120 --bind 0.0.0.0:$PORT
+worker: celery -A docuMind worker --loglevel=info --concurrency=2 --max-tasks-per-child=50
 ```
 
 `gthread` (or `gevent`) lets a single worker hold many concurrent streaming
 connections on separate threads instead of one connection monopolizing a process.
+`--bind 0.0.0.0:$PORT` binds to the port the host injects (Railway/Render assign a
+dynamic `$PORT`), rather than gunicorn's default 8000.
+
+The Celery worker pins `--concurrency=2` because prefork otherwise forks one
+process per CPU — on a 48-core host that's 48 copies of the app in memory, which
+OOMs a small instance. `--max-tasks-per-child=50` recycles workers to reclaim any
+memory creep from the PDF/embedding libraries.
 
 ## Local development
 
