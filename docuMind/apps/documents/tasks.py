@@ -14,7 +14,11 @@ def process_document(document_id):
     doc.status = Document.Status.PROCESSING
     doc.save(update_fields=["status"])
     try:
-        pages = extract_pages(doc.file.path)
+        # Read through the storage backend (not doc.file.path) so this works
+        # with remote object storage in prod, where the worker and web run in
+        # separate containers with no shared filesystem.
+        with doc.file.open("rb") as f:
+            pages = extract_pages(f)
         if not pages:
             raise ValueError("PDF has no pages")
         if not any(page.strip() for page in pages):
