@@ -6,10 +6,9 @@ invoice, statement, or receipt as a PDF; DocuMind extracts and embeds it, then
 answers your questions via retrieval-augmented generation, streaming the
 response token-by-token.
 
-<!-- Day 5: record docs/demo.gif (upload → process → ask → streamed answer) and embed here -->
-<!-- ![DocuMind demo](docs/demo.gif) -->
+![DocuMind demo — upload a PDF, watch it process, ask a question, stream a grounded answer](docs/demo.gif)
 
-**Live demo:** [docu-mind-kohl-sigma.vercel.app](https://docu-mind-kohl-sigma.vercel.app/) ·
+**Live demo:** [docu-mind-financial.vercel.app](https://docu-mind-financial.vercel.app/) ·
 **API docs:** [`/api/docs/`](https://documind-web.up.railway.app/api/docs/) ·
 ![CI](https://github.com/FatimaSaleem21/DocuMind/actions/workflows/ci.yml/badge.svg)
 
@@ -70,9 +69,6 @@ Deliberate choices, each defensible in a sentence:
   retried (with backoff) while opening the stream, but once tokens are reaching
   the client a failure can't be silently retried without a visible gap or
   repeat. Mid-stream failures surface as a clean SSE `error` event instead.
-- **`gthread` gunicorn workers, not `sync`, for SSE** — a streaming response
-  holds its worker for the whole stream; `sync` workers exhaust under a handful
-  of concurrent chats. See "Running the server."
 - **No LangChain** — retrieval, prompt construction, and streaming are written
   directly against the OpenAI and pgvector APIs. At this scope a framework adds
   indirection without saving meaningful code.
